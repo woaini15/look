@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dao.AccountMapper">
+	<select id="findAccoutNo" resultType="int" parameterType="String" >
+		select count(*) from account where cardNo=#{cardNo}
+	</select>
+	<select id="findAccoutPass" resultType="int" parameterType="String" >
+		select count(*) from account where cardNo=#{cardNo} and password=#{password}
+	</select>
+	<select id="findAccout" resultType="int" parameterType="String" >
+		select status from account where cardNo=#{cardNo} and password=#{password}
+	</select>
+	<select id="findBalance" resultType="float" parameterType="String" >
+		select balance from account where cardNo=#{cardNo}
+	</select>
+	<!-- 转账的update存储过程
+			drop procedure if exists acCount;
+			delimiter $
+			create procedure acCount(money float,cardNo1 varchar(20),cardNo2 varchar(20))
+			BEGIN
+			DECLARE t_error INTEGER DEFAULT 0;/*设置错误增量*/
+			DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET t_error=1;
+			START TRANSACTION;/*开启事物*/
+			set autocommit=0;
+			update account set balance=balance-money where cardNo=cardNo1;
+			update account set balance=balance+money where cardNo=cardNo2;
+			set autocommit=1;
+			IF t_error = 1 THEN /*执行失败回滚*/
+			ROLLBACK;
+			ELSE
+			COMMIT;
+			END IF;
+			end $
+			delimiter ; -->
+	<select id="updatBalance" statementType="CALLABLE" >
+		 {call acCount(#{money},#{cardNo1}, #{cardNo2})}
+	</select>
+	<!-- 添加交易记录的存储过程
+		create procedure addacCount(money float,cardNo1 varchar(20),cardNo2 varchar(20),transactionDate datetime)
+			BEGIN
+			insert into transactionrecord(cardNo,transactionDate,transactionAmount,balance,transactionType)
+			values(cardNo1,transactionDate,money,(select balance from account where cardNo=cardNo1),'取款');
+			insert into transactionrecord(cardNo,transactionDate,transactionAmount,balance,transactionType)
+			values(cardNo2,transactionDate,money,(select balance from account where cardNo=cardNo2),'存款');
+			END; -->
+	<select id="addBalance" statementType="CALLABLE" >
+		 {call addacCount(#{money},#{cardNo1}, #{cardNo2},#{transactionDate})}
+	</select>
+	<select id="findAccoutStatus" resultType="int" parameterType="String" >
+		select `status`,balance from account where cardNo=#{cardNo}
+	</select>
+	<select id="findAccoutBalance" resultType="float" parameterType="String" >
+		select balance from account where cardNo=#{cardNo}
+	</select>
+	<select id="findTransaList" resultType="TransactionRecord">
+		select * from transactionrecord where transactionDate BETWEEN #{transactionDate1}
+		  AND #{transactionDate2} GROUP BY transactionDate limit #{pageStart},#{pageSize};
+	</select>
+	<select id="findTransacount" resultType="int" parameterType="Date" >
+		select count(1) from transactionrecord where transactionDate BETWEEN #{transactionDate1}  AND #{transactionDate2};
+	</select>
+	<update id="updatPwass" parameterType="String">
+		update account set password=#{password} where cardNo=#{cardNo}
+	</update>
+</mapper>
